@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Filter, MapPin, Clock, DollarSign, Send } from 'lucide-react';
+import { Filter, MapPin, Clock, Send } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 import { ScrapMap } from '../../components/Maps/ScrapMap';
@@ -26,9 +26,9 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
   const R = 6371; // Earth's radius in kilometers
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
+  const a =
     Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
     Math.sin(dLon/2) * Math.sin(dLon/2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   return R * c;
@@ -46,6 +46,7 @@ export function NearbyScrapPage() {
 
   useEffect(() => {
     fetchNearbyListings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile]);
 
   useEffect(() => {
@@ -64,7 +65,6 @@ export function NearbyScrapPage() {
 
       if (error) throw error;
 
-      // Calculate distances and add to listings
       const listingsWithDistance = (data || []).map(listing => ({
         ...listing,
         distance: calculateDistance(
@@ -87,13 +87,13 @@ export function NearbyScrapPage() {
     let filtered = [...listings];
 
     // Filter by distance
-    filtered = filtered.filter(listing => 
+    filtered = filtered.filter(listing =>
       (listing.distance || 0) <= maxDistance
     );
 
-    // Filter by scrap type
+    // Filter by sub-category (scrap_type)
     if (filterType) {
-      filtered = filtered.filter(listing => 
+      filtered = filtered.filter(listing =>
         listing.scrap_type === filterType
       );
     }
@@ -129,9 +129,8 @@ export function NearbyScrapPage() {
         });
 
       if (error) throw error;
-      
+
       alert('Pickup request sent successfully!');
-      // Refresh listings to update status if needed
       fetchNearbyListings();
     } catch (error) {
       console.error('Error sending pickup request:', error);
@@ -158,7 +157,7 @@ export function NearbyScrapPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Find Nearby Scrap</h1>
           <p className="text-gray-600 mt-2">
-            Discover available scrap metal listings in your area
+            Discover available scrap listings in your area
           </p>
         </div>
 
@@ -183,14 +182,14 @@ export function NearbyScrapPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Scrap Type
+                Sub-category
               </label>
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="">All Types</option>
+                <option value="">All Sub-categories</option>
                 {getUniqueScrapTypes().map(type => (
                   <option key={type} value={type}>{type}</option>
                 ))}

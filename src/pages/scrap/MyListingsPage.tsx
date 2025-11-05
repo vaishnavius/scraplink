@@ -27,6 +27,7 @@ export function MyListingsPage() {
 
   useEffect(() => {
     fetchListings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile]);
 
   const fetchListings = async () => {
@@ -58,7 +59,7 @@ export function MyListingsPage() {
         .eq('scrap_id', scrapId);
 
       if (error) throw error;
-      
+
       setListings(listings.filter(listing => listing.scrap_id !== scrapId));
     } catch (error) {
       console.error('Error deleting listing:', error);
@@ -71,7 +72,7 @@ export function MyListingsPage() {
   };
 
   const handleUpdateListing = (updatedListing: ScrapListing) => {
-    setListings(listings.map(listing => 
+    setListings(listings.map(listing =>
       listing.scrap_id === updatedListing.scrap_id ? updatedListing : listing
     ));
   };
@@ -81,13 +82,13 @@ export function MyListingsPage() {
       available: 'bg-green-100 text-green-800',
       accepted: 'bg-yellow-100 text-yellow-800',
       completed: 'bg-gray-100 text-gray-800',
-    };
+    } as const;
 
     const icons = {
       available: Clock,
       accepted: CheckCircle,
       completed: Package,
-    };
+    } as const;
 
     const Icon = icons[status as keyof typeof icons];
 
@@ -114,7 +115,7 @@ export function MyListingsPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">My Listings</h1>
             <p className="text-gray-600 mt-2">
-              Manage your scrap metal listings and track their status
+              Manage your scrap listings and track their status
             </p>
           </div>
           <Link
