@@ -27,7 +27,7 @@ import { DatasetManagement } from './pages/admin/DatasetManagement';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -35,17 +35,17 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  
+
   if (!user) {
     return <Navigate to="/login" replace />;
   }
-  
+
   return <>{children}</>;
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { isAdmin, user, loading } = useAuth();
-  
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -53,11 +53,11 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  
+
   if (!isAdmin || !user) {
     return <Navigate to="/admin-login" replace />;
   }
-  
+
   return <>{children}</>;
 }
 
@@ -80,61 +80,36 @@ function App() {
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<HomePage />} />
-            <Route 
-              path="/login" 
-              element={user || isAdmin ? <Navigate to="/dashboard" replace /> : <LoginPage />} 
+            <Route
+              path="/login"
+              element={user || isAdmin ? <Navigate to="/dashboard" replace /> : <LoginPage />}
             />
-            <Route 
-              path="/register" 
-              element={user || isAdmin ? <Navigate to="/dashboard" replace /> : <RegisterPage />} 
+            <Route
+              path="/register"
+              element={user || isAdmin ? <Navigate to="/dashboard" replace /> : <RegisterPage />}
             />
-            <Route 
-              path="/admin-login" 
-              element={isAdmin ? <Navigate to="/admin/dashboard" replace /> : <AdminLoginPage />} 
+            <Route
+              path="/admin-login"
+              element={isAdmin ? <Navigate to="/admin/dashboard" replace /> : <AdminLoginPage />}
             />
 
             {/* Protected User Routes */}
-            <Route 
-              path="/dashboard" 
+            <Route
+              path="/dashboard"
               element={
-                isAdmin ? <Navigate to="/admin/dashboard" replace /> : 
-                <ProtectedRoute><DashboardPage /></ProtectedRoute>
-              } 
+                isAdmin ? <Navigate to="/admin/dashboard" replace /> : <ProtectedRoute><DashboardPage /></ProtectedRoute>
+              }
             />
-            <Route 
-              path="/list-scrap" 
-              element={<ProtectedRoute><ListScrapPage /></ProtectedRoute>} 
-            />
-            <Route 
-              path="/my-listings" 
-              element={<ProtectedRoute><MyListingsPage /></ProtectedRoute>} 
-            />
-            <Route 
-              path="/nearby-scrap" 
-              element={<ProtectedRoute><NearbyScrapPage /></ProtectedRoute>} 
-            />
-            <Route 
-              path="/pickup-requests" 
-              element={<ProtectedRoute><PickupRequestsPage /></ProtectedRoute>} 
-            />
-            <Route 
-              path="/transactions" 
-              element={<ProtectedRoute><TransactionsPage /></ProtectedRoute>} 
-            />
+            <Route path="/list-scrap" element={<ProtectedRoute><ListScrapPage /></ProtectedRoute>} />
+            <Route path="/my-listings" element={<ProtectedRoute><MyListingsPage /></ProtectedRoute>} />
+            <Route path="/nearby-scrap" element={<ProtectedRoute><NearbyScrapPage /></ProtectedRoute>} />
+            <Route path="/pickup-requests" element={<ProtectedRoute><PickupRequestsPage /></ProtectedRoute>} />
+            <Route path="/transactions" element={<ProtectedRoute><TransactionsPage /></ProtectedRoute>} />
 
             {/* Admin Routes */}
-            <Route 
-              path="/admin/control" 
-              element={<AdminRoute><AdminActivitiesPage /></AdminRoute>} 
-            />
-            <Route 
-              path="/admin/datasets" 
-              element={<AdminRoute><DatasetManagement /></AdminRoute>}
-            />
-            <Route 
-              path="/admin/dashboard" 
-              element={<AdminRoute><AdminControlPage /></AdminRoute>}
-            />
+            <Route path="/admin/control" element={<AdminRoute><AdminActivitiesPage /></AdminRoute>} />
+            <Route path="/admin/datasets" element={<AdminRoute><DatasetManagement /></AdminRoute>} />
+            <Route path="/admin/dashboard" element={<AdminRoute><AdminControlPage /></AdminRoute>} />
 
             {/* Catch-all redirect */}
             <Route path="*" element={<Navigate to="/" replace />} />

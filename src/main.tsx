@@ -1,10 +1,14 @@
+// src/index.tsx
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './App.tsx';
+import App from './App';             // use extensionless import
 import './index.css';
+import { AuthProvider } from './hooks/useAuth'; // provider from useAuth.tsx
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <AuthProvider>
+      <App />
+    </AuthProvider>
   </StrictMode>
 );
