@@ -10,107 +10,157 @@ export interface PricePrediction {
   };
 }
 
+type RFResponse = {
+  base_price: number;
+  predicted_price: number;
+  weight: number;
+};
+
+function normalizeScrapType(t: string): string {
+  const s = (t || "").toLowerCase().trim().replace(/\s+/g, "-");
+  if (["metal", "e-waste", "paper", "glass"].includes(s)) return s;
+  // handle variants like "ewaste", "e waste"
+  if (s === "ewaste") return "e-waste";
+  return s;
+}
+
 class PricePredictionEngine {
-  private basePrices: Record<string, number> = {
-    // Metal
-    iron: 25,
-    brass: 310,
-    copper: 670,
-    tin: 220,
-    lead: 160,
-    aluminum: 190,
-    bronze: 280,
-    zinc: 210,
-    steel: 35,
-    nickel: 430,
+  private endpoint =
+    (import.meta as any).env?.VITE_RF_API_URL || "http://127.0.0.1:5000";
 
-    // E-waste
-    'circuit boards': 120,
-    chips: 90,
-    computer: 150,
-    laptops: 170,
-    //phone: 140,
-    tv: 130,
-    refrigerator: 110,
-    'washing machine': 100,
-    batteries: 80,
-    charger: 60,
-
-    // Paper
-    newspaper: 18,
-    magazine: 22,
-    cardboard: 15,
-    'printed books': 10,
-    'low grade paper': 8,
-
-    // Glass
-    bottles: 5,
-    'broken window': 4,
-    mirror: 6,
-
-    // Fallbacks
-    'mixed metal': 50,
-    'mixed ewaste': 80,
-    'mixed paper': 12,
-    'mixed glass': 5,
-  };
-
-  private normalize(type: string): string {
-    if (!type) return '';
-    return type.toLowerCase().trim().replace(/s\b/, ''); // remove plural 's'
-  }
-
-  private getFallbackType(type: string): string {
-    const normalized = this.normalize(type);
-    if (
-      ['iron', 'brass', 'copper', 'tin', 'lead', 'aluminum', 'bronze', 'zinc', 'steel', 'nickel'].some(
-        (m) => normalized.includes(m)
-      )
-    )
-      return 'mixed metal';
-    if (
-      ['circuit', 'chip', 'computer', 'laptop', 'phone', 'tv', 'refrigerator', 'washing', 'batter', 'charger'].some(
-        (e) => normalized.includes(e)
-      )
-    )
-      return 'mixed ewaste';
-    if (['paper', 'book', 'cardboard', 'magazine', 'newspaper'].some((p) => normalized.includes(p)))
-      return 'mixed paper';
-    if (['glass', 'bottle', 'mirror', 'window'].some((g) => normalized.includes(g)))
-      return 'mixed glass';
-    return 'mixed ewaste';
-  }
-
-  async predictPrice(type: string, weight: number, description?: string): Promise<PricePrediction> {
-    const normalized = this.normalize(type);
-    let basePrice = this.basePrices[normalized];
-
-    if (!basePrice) {
-      const fallback = this.getFallbackType(normalized);
-      basePrice = this.basePrices[fallback];
-      if (!basePrice) {
-        throw new Error(`Price data not available for ${type}`);
-      }
+  /**
+   * Preferred: 3-level prediction (Category → Sub-category → Leaf)
+   */
+  async predictPrice3(
+    scrapCategory: string,
+    subCategory: string,
+    subSubCategory: string,
+    weight: number
+  ): Promise<PricePrediction> {
+    if (!scrapCategory || !subCategory || !subSubCategory || !weight || weight <= 0) {
+      throw new Error("Invalid inputs. Provide category, sub-category, sub-sub-category and positive weight.");
     }
 
-    // Simple randomized factors for realism
-    const weightMultiplier = 1 + Math.random() * 0.2; // 1.0–1.2
-    const marketTrend = 0.9 + Math.random() * 0.2; // 0.9–1.1
-    const qualityAdjustment = 0.95 + Math.random() * 0.1; // 0.95–1.05
+    const body = {
+      scrap_type: normalizeScrapType(scrapCategory),
+      sub_category: subCategory,
+      sub_sub_category: subSubCategory,
+      weight,
+    };
 
-    const predictedPrice = basePrice * weight * weightMultiplier * marketTrend * qualityAdjustment;
-    const confidence = 0.85 + Math.random() * 0.1; // 85–95%
+    const res = await fetch(`${this.endpoint}/predict`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      let msg = "Prediction failed";
+      try {
+        const err = await res.json();
+        msg = err?.error || msg;
+      } catch {}
+      throw new Error(msg);
+    }
+
+    const data = (await res.json()) as RFResponse;
+
+    const basePrice = Number(data.base_price);
+    const predicted = Number(
+      data.predicted_price != null ? data.predicted_price : basePrice * weight
+    );
+
+    const denom = Math.max(basePrice * weight, 1e-6);
+    const weightMultiplier = Math.max(predicted / denom, 0.000001);
 
     return {
-      predictedPrice,
-      confidence,
+      predictedPrice: predicted,
+      confidence: 0.9, // keep UI-compatible; upgrade later if backend sends confidence
       factors: {
         basePrice,
         weightMultiplier,
-        marketTrend,
-        qualityAdjustment,
+        marketTrend: 1.0,
+        qualityAdjustment: 1.0,
       },
     };
+  }
+
+  /**
+   * Backward-compatible: 2-level (Category + Leaf)
+   * - Treats subCategoryOrLeaf as the LEAF and sets sub_category="N/A" on the API.
+   * - Your Flask app already supports this mode.
+   */
+  async predictPrice(
+    scrapCategory: string,
+    subCategoryOrLeaf: string,
+    weight: number
+  ): Promise<PricePrediction> {
+    if (!scrapCategory || !subCategoryOrLeaf || !weight || weight <= 0) {
+      throw new Error("Invalid inputs. Provide category, subcategory/leaf and positive weight.");
+    }
+
+    const body = {
+      scrap_type: normalizeScrapType(scrapCategory),
+      sub_category: subCategoryOrLeaf, // API will treat this as leaf if sub_sub_category is absent
+      weight,
+    };
+
+    const res = await fetch(`${this.endpoint}/predict`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      let msg = "Prediction failed";
+      try {
+        const err = await res.json();
+        msg = err?.error || msg;
+      } catch {}
+      throw new Error(msg);
+    }
+
+    const data = (await res.json()) as RFResponse;
+
+    const basePrice = Number(data.base_price);
+    const predicted = Number(
+      data.predicted_price != null ? data.predicted_price : basePrice * weight
+    );
+
+    const denom = Math.max(basePrice * weight, 1e-6);
+    const weightMultiplier = Math.max(predicted / denom, 0.000001);
+
+    return {
+      predictedPrice: predicted,
+      confidence: 0.9,
+      factors: {
+        basePrice,
+        weightMultiplier,
+        marketTrend: 1.0,
+        qualityAdjustment: 1.0,
+      },
+    };
+  }
+
+  /**
+   * Optional simple batch (sequential). If you add a /predict-batch,
+   * you can optimize this to one request.
+   */
+  async predictBatch3(
+    items: Array<{
+      category: string;
+      subCategory: string;
+      subSubCategory: string;
+      weight: number;
+    }>
+  ): Promise<PricePrediction[]> {
+    const out: PricePrediction[] = [];
+    for (const it of items) {
+      out.push(
+        await this.predictPrice3(it.category, it.subCategory, it.subSubCategory, it.weight)
+      );
+    }
+    return out;
   }
 }
 
